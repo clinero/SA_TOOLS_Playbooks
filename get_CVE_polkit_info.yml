@@ -1,0 +1,39 @@
+---
+- hosts: all
+  become: true
+  gather_facts: False
+
+  vars:
+    cve: CVE-2021-4034
+    package: polkit
+    report: /tmp/polkit.out
+
+  tasks:
+   - name: checking last patching info
+     shell: "rpm -q {{ package }} --changelog | grep {{ cve }}" 
+     register: result 
+   - debug: msg="{{result.stdout}}"
+
+   - name: Create the header for the report
+     shell: echo " host                   CVE                      Fixed" >> {{ report }} 
+     run_once: true
+     delegate_to: localhost
+
+   - name: Create the header for the report
+     shell: echo "----------------------------------------------------------" >> {{ report }} 
+     run_once: true
+     delegate_to: localhost
+
+   - name: Creat standard output
+     shell: echo "{{ inventory_hostname }}   {{ result.stdout }}         YES"  >> {{ report }} 
+     delegate_to: localhost 
+     when: result.rc == 0
+
+   - name: Creat standard output
+     shell: echo "{{ inventory_hostname }}   {{ result.stdout }}         NO"  >> {{ report }}
+     delegate_to: localhost
+     when: result.rc != 0
+
+   - name: Modify permissions
+     shell: chmod 644 {{ report }} 
+     delegate_to: localhost

@@ -1,0 +1,4 @@
+ecsdbs1L1.verizon.com
+ecsdbs2L1.verizon.com
+#ansible_user="clinero"
+#ansible_password="Admin123#"

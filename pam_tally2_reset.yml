@@ -1,0 +1,15 @@
+---
+- hosts: all
+  become: true
+
+  vars_prompt:
+    - name: user_name
+      prompt: Enter the user name for pam_tally2 reset
+      private: no
+
+  tasks:
+    - name: pam_tally2 reset 
+      command: /sbin/pam_tally2 -u  '{{ user_name }}' --reset 
+
+    - name: Update sssd cache
+      shell:  /usr/sbin/sss_cache -E

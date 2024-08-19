@@ -1,0 +1,44 @@
+---
+- hosts: all
+  become: true
+  gather_facts: yes
+
+  vars:
+    iso8601format: '%Y-%m-%dT%H:%M:%S.%fZ'
+
+  tasks:
+
+    - name: set my date
+      shell: date +%m%d%Y%s
+      register: mydate 
+
+    - name: make backup copy of /etc/pam.d/sshd
+      copy:
+        src:  /etc/pam.d/sshd
+        dest:  /etc/pam.d/sshd{{ mydate.stdout }}
+
+    - name: Update /etc/pam.d/sshd 
+      lineinfile:
+        path: /etc/pam.d/sshd 
+        insertbefore: '^password   include      password-auth$'
+        line: 'account    required     pam_access.so accessfile=/etc/security/access-sshd.conf'
+        state: present
+
+    - name: Create access-sshd.conf file
+      file:
+        path: /etc/security/access-sshd.conf
+        owner: root
+        group: root
+        mode: '0755'
+        state: touch 
+
+    - name:  Add entry /etc/security/access-sshd.conf
+      blockinfile:
+        path: /etc/security/access-sshd.conf 
+        block: |
+          -:ALL:ALL
+
+    - name:  Restarted sshd
+      ansible.builtin.service: 
+        name: sshd
+        state: restarted

@@ -1,0 +1,14 @@
+---
+- hosts: all
+  become: true
+
+  vars_prompt:
+    - name: user_name
+      prompt: Enter the user name that you want to check
+      private: no
+
+  tasks:
+    - name: checking if user is logged in 
+      shell: "w|grep '{{ user_name }}' | awk '{print $1}'"
+      register: command_output
+    - debug: msg="{{command_output}}" 

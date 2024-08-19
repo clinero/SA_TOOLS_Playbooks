@@ -1,0 +1,34 @@
+---
+#########################################################
+#Note:  Requires values to be set in inventory file     #
+#Look at test.inv example in this directory             #
+#########################################################
+- hosts: test
+  become: no
+  serial: 1
+
+  vars_prompt:
+    - name: "user"
+      prompt: "Enter your VCENTER username"
+      private: no
+    - name: "pass"
+      prompt: "Enter password"
+      private: yes
+    - name: "vcenter"
+      prompt: "Enter VCenter server hostname"
+      private: no
+    
+
+  tasks:
+   - name: Remove  snapshot
+     vmware_guest_snapshot:
+       hostname: "{{ vcenter }}.nss.vzwnet.com"
+       username: "{{ user }}"
+       password: "{{ pass }}"
+       validate_certs: no
+       datacenter: "{{ clust_name }}"
+       folder: /vm
+       name: "{{ inventory_hostname }}"
+       state: absent
+       snapshot_name: "{{ snap_name }}" 
+     delegate_to: localhost

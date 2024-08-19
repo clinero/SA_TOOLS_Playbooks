@@ -1,0 +1,18 @@
+---
+- hosts: all
+  become: true
+  become_method: sudo
+  gather_facts: False
+
+  tasks:
+
+    - name: Checkn to see if NSA update script exists
+      stat:
+        path: /opt/stdsmont/bin
+      register: update_file
+
+    - name: Running update for NSA
+      shell:  /opt/stdsmont/bin/update_nsa
+      when: update_file.stat.exists
+      args:
+        warn: False

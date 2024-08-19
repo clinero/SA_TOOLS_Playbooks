@@ -1,0 +1,75 @@
+---
+- hosts: all
+  become: true
+  gather_facts: yes
+
+  tasks:
+
+    - name: Check for global access in sssd.conf file
+      shell: cat /etc/sssd/sssd.conf | awk '$1 ~ /^ldap_user_search/ && /global/'
+      register: ACCESS
+      changed_when: False
+
+    - name: show value
+      debug: var=ACCESS.stdout
+
+    - name: make backup copy of /etc/sssd/sssd.conf
+      copy:
+        src:  /etc/sssd/sssd.conf
+        dest:  /etc/sssd/sssd.conf.{{ ansible_date_time.iso8601_micro }}
+      when: ACCESS.stdout == ""
+      ignore_errors: True
+
+    - name: comment out old search entries
+      replace:
+        path: /etc/sssd/sssd.conf
+        regexp: '^ldap_user_search_base'
+        replace: '#ldap_user_search_base'
+      when: ACCESS.stdout == "" 
+
+    - name: Add new search entries
+      lineinfile:
+        path: /etc/sssd/sssd.conf
+        insertafter: '#ldap_user_search_base'
+        line: "{{ item.line }}"
+      with_items:
+        - {line: 'ldap_user_search_base =  cn=localaccounts,cn=etc,dc=vzwnet,dc=com?subtree?uid=*?ou=people,dc=vzwnet,dc=com?subtree?uid=*?ou=people,cn=global,dc=vzwnet,dc=com?subtree?uid=*'}
+
+    - name: restart sssd
+      shell:  systemctl restart sssd
+      when: ACCESS.stdout == ""
+
+
+    - name: Look for non-odc in access.conf
+      shell: grep "^+:@user-vson-non-odc-global" /etc/security/access.conf
+      register: global_status
+      changed_when: False
+      ignore_errors: True
+
+    - name: Remove bad global entry
+      shell:  sed -i '/^:@user-vson-non-odc-global/d' /etc/security/access.conf
+      args:
+        warn: False
+      changed_when: True 
+
+#    - name: Remove bad global entry
+#      lineinfile:
+#        dest: /etc/security/access.conf
+#        regexp: '^:@user-vson-non-odc-global'
+#        line: ''
+
+    - name:  Update access.conf
+      replace:
+        path: /etc/security/access.conf
+        regexp: '^\+:@user-vson-non-odc-global$'
+      #  regexp: 'user-vson-non-odc-global'
+        replace: '+:@user-vson-non-odc-global:ALL'
+      when:  global_status.rc == 0
+
+    - name: Inserting global users
+      lineinfile:
+        path: /etc/security/access.conf
+        insertbefore: '^-:ALL:ALL'
+        line: '+:@user-vson-non-odc-global:ALL'
+      when: global_status.rc != 0
+

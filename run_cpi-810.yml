@@ -1,0 +1,58 @@
+---
+
+################################################################
+# Written by: Ron Cline                                        # 
+# Date: 03/02/2018                                             #
+# Summary: simple playbook used to run  CPI-810 scripts        #
+################################################################
+
+
+#  Used to update CPI-810 webserver DB @ http://njbdnsapd1/cpi810/
+
+
+- hosts: all
+  gather_facts: no
+  become: true
+  become_method: sudo
+
+# Install CPI-810 required packages Note: nmap-ncat replaces nc on RHEL 7
+
+  tasks:
+   - name:  Install VZWcpi810cfg package
+     yum:
+       name:  VZWcpi810cfg
+       state: present
+
+   - name:  Install NetCat package
+     yum:
+       name: nmap
+       state: present
+
+# Get VZW security tarball and place it on the system 
+
+   - name:  create /opt/vzwsec directory
+     file:
+        path: /opt/vzwsec/stage
+        state: directory
+        mode: 0755
+        recurse: yes
+
+   - name:  copy security tarball
+     copy:
+       src: /usr/apps/ansible/SA_TOOLS/cpi-810_support.tar
+       dest: /opt/vzwsec/stage
+       owner: root
+       group: root
+       mode: 0755
+
+   - name:  Untar CPI-810 support files
+     shell: tar xf cpi-810_support.tar
+     args:
+       chdir: /opt/vzwsec/stage/
+       creates: /opt/vzwsec/stage/cpi-810_support/
+       warn: no
+
+   - name: Uploading CPI-810 info to http://njbdnsapd1/cpi810/
+     shell: wget --no-check-certificate -4 -qO- https://nj51rhsp1v/pub/ksdata/update/cpilin/ | bash
+     args:
+       warn: no

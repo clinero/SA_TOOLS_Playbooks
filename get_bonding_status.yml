@@ -1,0 +1,10 @@
+---
+- name: Checking  Networking bonding
+  hosts: all
+  become: true
+
+#  vars:
+
+  tasks:
+
+    - name: 

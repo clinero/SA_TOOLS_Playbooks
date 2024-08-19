@@ -1,0 +1,15 @@
+---
+- hosts: all
+  become: true
+  become_method: sudo
+  gather_facts: True
+
+  tasks:
+
+    - name: stop snmp service
+      service:
+        name: snmpd
+        state: stopped
+
+    - name:  Disable snmp
+      shell: systemctl --now disable snmpd

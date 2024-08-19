@@ -1,0 +1,22 @@
+---
+- hosts: all
+  gather_facts: yes
+  become: true
+  become_method: sudo
+
+  tasks:
+    - name: fix file permissions
+      file:
+        path: /var/log/btmp
+        owner: root
+        group: utmp
+        mode: 0600
+
+    - name:  Update /etc/logrotate.d/btmp 
+      replace:
+        path: /etc/logrotate.d/btmp 
+        regexp: 'create 0660 root utmp$'
+        replace: 'create 0600 root utmp'
+
+    - name:  For log to rotate
+      shell:  logrotate -f /etc/logrotate.d/btmp

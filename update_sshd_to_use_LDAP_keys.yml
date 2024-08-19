@@ -1,0 +1,31 @@
+---
+
+- hosts: all
+  gather_facts: no
+  become: true
+
+# Update /etc/sshd_config file to allow ssh keys from LDAP
+
+  tasks:
+
+    - name: make backup copy of sshd_config
+      shell: /bin/cp /etc/ssh/sshd_config /etc/ssh/sshd_config.`date '+%m%d%y%H%M'`
+
+    - name: Insert comment
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^# Enable LDAP public key retrieval'
+        insertafter: '^# Authentication:'
+        line: '# Enable LDAP public key retrieval'
+
+    - name:  Update sshd_config
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        line: "{{ item.line }}"
+        insertafter: '^# Enable LDAP public key retrieval'
+      with_items:
+        - {line: 'AuthorizedKeysCommandUser nobody'}
+        - {line: 'AuthorizedKeysCommand /usr/bin/sss_ssh_authorizedkeys'}
+
+    - name: Restart sshd
+      command: /bin/systemctl restart sshd

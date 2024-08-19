@@ -1,0 +1,10 @@
+---
+- hosts: all
+  gather_facts: no
+  become: true
+  become_method: sudo
+
+  tasks:
+
+    - name: lock account 
+      shell:  passwd -l  {{ user_name }}

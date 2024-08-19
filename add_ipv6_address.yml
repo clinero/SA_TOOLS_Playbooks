@@ -1,0 +1,37 @@
+---
+
+############################################################
+# Written by:  Ron Cline                                   #
+# Date:  02/28/2018                                        #
+# Requirements:  Must have IPV6 entries in inventory file  #
+# Summary:  Adds IPv6 and gateway  addresses on eth0       #
+# V1                                                       #
+# ##########################################################
+
+- hosts: all
+  gather_facts: no
+  become: true
+  become_method: sudo
+
+
+#  vars_files:
+#    - /home/clinero/my-playbooks/NCWS/v6.yml
+  tasks:
+    - name: Change ipv6 pattern 
+      shell:  sed -i 's/^IPV6_AUTOCONF/#IPV6_AUTOCONF/' /etc/sysconfig/network-scripts/ifcfg-eth0 
+
+
+    - name: Change ipv6 pattern 
+      shell:  sed -i 's/^IPV6_DEFROUTE/#IPV6_DEFROUTE/' /etc/sysconfig/network-scripts/ifcfg-eth0
+
+    - name: Loading IPv6 address from config file
+      lineinfile:
+        path: /etc/sysconfig/network-scripts/ifcfg-eth0
+        line: "{{ item.line }}"
+      with_items:
+        - {line: 'IPV6INIT=yes'}
+        - {line: 'IPV6ADDR={{IPV6}}/64'}
+        - {line: 'IPV6_DEFAULTGW=2001:4888:a01:221a:a1:22::'}
+
+    - name:  Restart networking
+      command: systemctl restart network.service

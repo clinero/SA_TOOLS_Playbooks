@@ -1,0 +1,12 @@
+---
+- hosts: all 
+  gather_facts: no
+  become: true
+  become_method: sudo
+
+  tasks:
+
+  - name: Updating CPI-810 DB
+    shell:  wget --no-check-certificate -4 -qO- https://nj51rhsp1v/pub/ksdata/update/cpilin | bash
+    args:
+      warn: no

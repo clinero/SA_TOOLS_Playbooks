@@ -1,0 +1,11 @@
+---
+- hosts: all
+  become: true
+  gather_facts: true
+
+  tasks:
+   - name: snooze alarms
+     shell: /opt/stdsmont/bin/snooze.pl 1200 
+
+   - name: power off host
+     shell: /sbin/shutdown -h now  "{{ inventory_hostname }}"

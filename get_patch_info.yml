@@ -1,0 +1,23 @@
+---
+- hosts: all
+  become: true
+  gather_facts: true
+
+  tasks:
+   - name: checking last patching info
+     shell: "rpm -qa --last kernel|head -1"
+     register: command_output
+   - debug: msg="{{command_output.stdout}}"
+
+   - name: Create the header for the report
+     shell: echo " host              kernel version                                  last updated" >> /tmp/kernel_report.out
+     run_once: true
+     delegate_to: localhost
+ 
+   - name: Creat standard output
+     shell: echo "{{ inventory_hostname }} {{ command_output.stdout }}" >> /tmp/kernel_report.out
+     delegate_to: localhost 
+
+   - name: Modify permissions
+     shell: chmod 644 /tmp/kernel_report.out
+     delegate_to: localhost

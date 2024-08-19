@@ -1,0 +1,44 @@
+---
+- hosts: all
+  become: no
+  #become_method: sudo
+  gather_facts: False
+  serial: 1
+
+  vars:
+    SA_MAIL: ronald.cline@verizonwireless.com,9086259024@vtext.com,nagarjun.talluri@verizon.com,james.davis4@verizon.com,donald.r.driscoll@verizon.com
+
+
+  tasks:
+
+   - name: delay 3 min and wait up to 15 min for listener response 
+     local_action: wait_for
+     args:
+       host: "{{ inventory_hostname }}"
+       port: 1521
+       delay: 0
+       timeout: 15 
+       state: started
+     become: false
+     register: result
+     ignore_errors: True
+
+   - debug: var=result
+
+   - name: Send alert e-mail when listener is down
+     mail:
+       subject: 'Status of Oracle on {{ inventory_hostname }} is offline'
+       from: '{{ SA_MAIL }}'
+       body: 'Oracle listener is offline on {{ inventory_hostname }}'
+       to: '{{ SA_MAIL }}'
+     delegate_to: localhost
+     when: result is failed
+
+   - name: Send alert e-mail when listener is online
+     mail:
+       subject: 'Status of Oracle on {{ inventory_hostname }} is online'
+       from: '{{ SA_MAIL }}'
+       body: 'Oracle listener is online on {{ inventory_hostname }}'
+       to: 'ronald.cline@verizonwireless.com,nagarjun.talluri@verizon.com,james.davis4@verizon.com,donald.r.driscoll@verizon.com'
+     delegate_to: localhost
+     when: result is not failed

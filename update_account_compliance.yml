@@ -1,0 +1,12 @@
+---
+- hosts: all
+  gather_facts: True
+  become: True
+  become_method: sudo
+
+  tasks:
+    - name: Update user account compliance exp min days etc... 
+      shell: chage -m 0 -M 90 "{{item}}"
+      loop:
+        - root
+        - mightor

@@ -1,0 +1,11 @@
+- hosts: all 
+  tasks:
+  - name: Ansible replace string example
+    shell: sed -i 's/^User_Alias OAF_PROD = +user-naeadm$/User_Alias OAF_PROD = +user-naeadm,+user-nae-global/' /etc/sudoers
+    args:
+      warn: false 
+           
+#    replace:
+#      path: /var/tmp/sudoers.SAVE
+#      regexp: '^User_Alias OAF_PROD = +user-naeadm$'
+#      replace: "User_Alias OAF_PROD = +user-naeadm,+user-nae-global"

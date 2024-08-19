@@ -1,0 +1,33 @@
+---
+- hosts: all
+  become: true
+  gather_facts: yes
+
+  tasks:
+
+    - name: make bakup copy of /etc/chrony.conf 
+      copy:
+        src:  /etc/chrony.conf
+        dest:  /etc/chrony.conf.stock 
+      when: (ansible_facts['distribution'] == "RedHat") and (ansible_facts['distribution_major_version'] == "8")
+
+    - name: Replace time server entries
+      replace:
+        path: /etc/chrony.conf
+        regexp: '^pool'
+        replace: '#pool'
+      when: (ansible_facts['distribution'] == "RedHat") and (ansible_facts['distribution_major_version'] == "8")
+
+    - name: Adde NTP server entries
+      lineinfile:
+        path: /etc/chrony.conf 
+        insertafter: '#pool 2.rhel.pool.ntp.org iburst'
+        line: "{{ item.line }}"
+      with_items:
+        - {line: 'server timehost3'}
+        - {line: 'server timehost2 prefer'}
+        - {line: 'server timehost1 prefer'}
+      when: (ansible_facts['distribution'] == "RedHat") and (ansible_facts['distribution_major_version'] == "8")
+
+    - name: restart chronyd
+      shell:  systemctl restart chronyd

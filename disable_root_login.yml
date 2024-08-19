@@ -1,0 +1,12 @@
+---
+- hosts: all
+  become: true
+  become_method: sudo
+  gather_facts: False
+
+  tasks:
+
+    - name: Fix root login 
+      shell: sed -i 's/^#PermitRootLogin/#PermitRootLogin no$/g' /etc/ssh/sshd_config 
+      args:
+        warn: False

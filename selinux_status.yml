@@ -1,0 +1,20 @@
+---
+- name: Install Tenable Agent
+  hosts: all
+  become: true
+
+#  vars:
+
+  tasks:
+
+    - name: check selinux
+      shell: /sbin/getenforce
+      register: selinux_stat
+
+    - debug:
+        var: selinux_stat 
+#        msg: "{{ selinux_stat.stdout }}"
+
+    - name: log it
+      shell: echo "{{ inventory_hostname }} selinux status = {{ selinux_stat.stdout }}" >> /tmp/status.out
+      delegate_to: localhost

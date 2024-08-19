@@ -1,0 +1,196 @@
+- hosts: all
+  serial: 1
+  order: shuffle
+  become: true
+  environment:
+    PATH: /usr/sbin:/sbin:{{ ansible_env.PATH }}
+
+  vars:
+    userid: "{{ lookup('env','USER') }}"
+    dir: "/usr/apps/ansible/SA_TOOLS"
+    user: "{{ (inventory_file | basename).split('_')[2] }}"
+    grp: "{{ (inventory_file | basename | regex_replace('[.]','_')).split('_')[-2] }}"
+    mydate: "{{ (inventory_file | basename).split('_')[1] }}"
+    k8_master: "txsldmedzkpa1"
+  vars_files:
+    - "{{ dir }}/{{ grp }}_latest_patch.yml"
+    - "{{ dir }}/sa_email_address.yaml"
+  tasks: 
+
+    - name: Determine the target kernel version
+      set_fact:
+        target_kernel: "{{ item.value }}"
+      loop: "{{ lookup('dict',kernel) }}"
+      ignore_errors: yes
+      no_log: true
+      when:
+        - "ansible_distribution in item.key"
+        - "ansible_distribution_major_version in item.key"
+      tags: check
+
+##  "{{ ansible_hostname }} {{ ansible_distribution }} {{ ansible_distribution_version }} {{ ansible_kernel }}"
+
+    - block:
+
+        - name: "run /bin/kubectl drain {{ inventory_hostname  }} --ignore-daemonsets --delete-emptydir-data"
+          command: "/bin/kubectl drain {{ inventory_hostname  }} --ignore-daemonsets --delete-emptydir-data"
+          delegate_to: "{{ k8_master }}"
+          ## wait up to 3 minutes
+          async: 180
+          poll: 3
+          ####   no_log: true
+          register: output
+#          args:
+#            warn: false
+
+        - debug:
+            msg: "{{ output.stdout_lines }}"
+
+        - name: Running /opt/stdsmont/bin/snooze.pl 120 concurrently
+          changed_when: false
+          command: /opt/stdsmont/bin/snooze.pl 120
+          async: 90
+          poll: 3
+          ignore_errors: yes
+          no_log: true
+  
+        - name: "run 'package-cleanup -y --oldkernels --count=1' if /boot is less than 40MB"
+          command: "/usr/bin/package-cleanup -y --oldkernels --count=1"
+          args:
+            warn: false
+          with_items:
+            - "{{ ansible_mounts }}"
+          when:
+            - "'/boot' in item.mount"
+            - "item.size_available | int < 41943040"
+#          no_log: true
+  
+
+#        - name: "DO NOT type Control-C to abort task, going to run yum update soon, now is {{ lookup('pipe','date') }}"
+#          set_fact: 
+#            patching_options: "{{ ansible_local.patching.linux.options }}"
+#          no_log: true
+#          ignore_errors: true
+  
+        - name: DO NOT type Control-C, running 'yum -y update --disablerepo=kubernetes --nogpgcheck' up to 20 minutes
+          command: "yum -y update --disablerepo=kubernetes --nogpgcheck"
+          args:
+            warn: false
+          async: 1200
+          poll: 3
+          register: output
+  
+  
+  #     RHEL 6 returns 2 for error: no such option: -r
+  #     RHEL 7 returns 0 for Reboot is probably not necessary.   <-- don't reboot if return 0, or reboot only if it is not 0
+  #     RHEL 7 returns 1 for Reboot is required 
+  #     RHEL 8 returns 2 if needs-restarting is not found
+##        - name: needs-restarting -r
+##          command: "needs-restarting -r"
+##          args:
+##            warn: false
+##          ignore_errors: true
+##          no_log: true
+##          register: need_restart
+        ## reboot if 'yum update' returns zero
+        ## reboot if 'needs_restarting' returns non-zero value
+  
+        - name: "Run init 6 and wait for up to 4 min, now is {{ lookup('pipe','date') }}"
+          shell: sleep 4 && init 6
+          args:
+            warn: false
+          async: 240
+          poll: 1
+          ignore_errors: true
+          when:
+            - output.rc == 0
+##            - need_restart.rc != 0
+        
+        - name: delay 30 sec and wait up to 10 min for server to boot up
+          wait_for:
+            host: "{{ inventory_hostname }}"
+            port: 22
+            delay: 30
+            timeout: 600
+            state: started
+          connection: local
+          ignore_errors: true
+
+
+##        - name: delay 30 sec and wait up to 15 min for server to boot up
+##          local_action: wait_for
+##          args:
+##            warn: false
+##            host: "{{ inventory_hostname }}"
+##            port: 22
+##            delay: 30
+##            timeout: 900
+##            state: started
+##          ignore_errors: true
+##
+      when: ansible_kernel != target_kernel
+
+    - name: "System is booted up, run setup module to update facts, now is {{ lookup('pipe','date') }}"
+      setup:
+        gather_subset:
+          - '!all'
+          - '!any'
+          - hardware
+        gather_timeout: 90
+      changed_when: false
+  
+    - name: Convert ansible_uptime_seconds to human readable format
+      set_fact:
+        uptime: "{{ (ansible_uptime_seconds /86400) | round | int }}days"
+      when: ansible_uptime_seconds | int >= 86400
+      no_log: true
+      tags: check
+  
+    - set_fact:
+        uptime: "{{ (ansible_uptime_seconds /3600) | round | int }}hrs"
+      when: ansible_uptime_seconds | int < 86400
+      no_log: true
+      tags: check
+  
+    - name: "kubectl get node {{ inventory_hostname }}; kubectl uncordon {{ inventory_hostname }} "
+      command: "/bin/kubectl {{ item }} {{ inventory_hostname }}"
+      args:
+        warn: false
+      with_items:
+        - "get nodes"
+        - "uncordon"
+      delegate_to: "{{ k8_master }}"
+      no_log: true
+      tags: start
+      register: output
+
+### [root@txsldmedzkpa1 ~]# kubectl get nodes txsldmedhspa1
+### NAME            STATUS   ROLES    AGE   VERSION
+### txsldmedhspa1   Ready    <none>   73m   v1.23.3
+### [root@txsldmedzkpa1 ~]# kubectl uncordon txsldmedhspa1
+### node/txsldmedhspa1 already uncordoned
+
+    - debug:
+        msg: 
+          - "{{ output| json_query('results[*].stdout_lines[1]') }}"
+          - "{{ output| json_query('results[*].stdout_lines[0]') }}"
+      tags: start
+
+#    - debug:
+#        msg: "{{ item }}"
+#      loop: "{{ output| json_query('results[*].stdout_lines') }}"
+
+#        - name: "DO NOT type Control-C to abort task, going to run yum update soon, now is {{ lookup('pipe','date') }}"
+    - assert:
+        that:
+          - ansible_kernel == target_kernel
+        success_msg: "{{ inventory_hostname }} is compliant, {{ ansible_distribution }} {{ ansible_kernel }} - uptime: {{ uptime }}"
+        fail_msg: "Need patching --> {{ inventory_hostname }} {{ ansible_distribution }} {{ ansible_kernel }} - uptime: {{ uptime }}"
+      register: verify
+      no_log: true
+      tags: check
+
+#    - debug:
+#        msg: "{{ item }}"
+#      loop: "{{ verify | json_query('results[*].msg') }}"
+#      tags: check

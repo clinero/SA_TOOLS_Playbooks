@@ -1,0 +1,17 @@
+- hosts: all
+  gather_facts: no
+  become: true
+  become_method: sudo
+
+  tasks:
+
+    - name: get ipv6 address
+      shell: getent hosts {{ inventory_hostname }}-v6|awk '{print $1}'
+      register: ipv6_address
+
+    - name: show value
+      debug: var=ipv6_address
+
+    #- name: Check to see if ipv6 address is in bond0 config file
+    #  shell: grep 
+     

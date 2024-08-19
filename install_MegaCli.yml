@@ -1,0 +1,29 @@
+---
+- hosts: all
+  become: true
+  become_method: sudo
+  gather_facts: True 
+  serial: 1
+
+  tasks:
+
+#    - name: Check if MegaCli indstalled
+#      command:  "yum list installed | grep MegaCli | awk '{ print $1 }'"
+#      register: install_status
+
+#    - debug:
+#        msg: output1 {{ install_status }}
+
+#    - name: Install MegaCli the old fashion way
+#      become: True
+#      shell:  yum -y install MegaCli
+#      register: yum_status
+
+#    - debug:
+#        msg: output2 {{ yum_status }}
+
+    - name: Install MegaCLI RAID management for NSA
+      ansible.builtin.yum:
+        name: MegaCli
+        state: present
+      when: (ansible_facts['distribution_major_version'] == "6") or (ansible_facts['distribution_major_version'] == "7")

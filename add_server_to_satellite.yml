@@ -1,0 +1,26 @@
+---
+- hosts: all
+  become: true
+  become_method: sudo
+  gather_facts: True
+  serial: 1
+
+  vars:
+    satellite_host: njbbrhsp3v
+
+  tasks:
+
+    - name:  Download bootstap for satellite
+      command:  wget --no-check-certificate https://{{ satellite_host|default ('njbbrhsp3v') }}.nss.vzwnet.com/pub/bootstrap.py -qO /tmp/bootstrap.py
+
+    - name:  Run bootstrap
+      command: python /tmp/bootstrap.py -s "{{ satellite_host }}".nss.vzwnet.com -o "NSS" -a nss-rhel7-4wpc  --force --skip puppet --skip foreman
+      args:
+        warn: False
+      when: (ansible_facts['distribution'] == "RedHat") and (ansible_facts['distribution_major_version'] == "7")
+
+
+
+
+# wget --no-check-certificate https://carorhsp3v.nss.vzwnet.com/pub/bootstrap.py -qO /tmp/bootstrap.py
+# python /tmp/bootstrap.py -s carorhsp3v.nss.vzwnet.com -o "NSS" -a nss-rhel7-4wpc  --force --skip puppet --skip foreman
