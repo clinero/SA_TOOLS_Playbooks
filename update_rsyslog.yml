@@ -1,0 +1,26 @@
+---
+- hosts: all
+  gather_facts: yes
+  become: true
+  become_method: sudo
+
+  tasks:
+   - name:  fix NSS /etc/rsyslog.conf
+     lineinfile:
+       path: /etc/rsyslog.conf
+       #regexp: '^\[nss\]$' 
+       insertafter: '^\[secloghost\]$'
+       line: "{{ item.line }}"
+     with_items:
+       - {line: '*.*;local5.none @loghost:514'}
+       #- {line: '[nss]'}
+
+   - name: Restart rsyslog on RHEL7
+     shell: systemctl restart rsyslog 
+     when: (ansible_facts['distribution'] == "RedHat") and (ansible_facts['distribution_major_version'] == "7")
+
+   - name: Restart rsyslog on RHEL6
+     service:
+       name: rsyslog
+       state: restarted 
+     when: (ansible_facts['distribution'] == "RedHat") and (ansible_facts['distribution_major_version'] == "6")
